@@ -1,7 +1,6 @@
 
 import os
-import smtplib
-from email.mime.text import MIMEText
+import resend
 from flask import Flask, jsonify, request
 from mssql_python import connect
 from flask_cors import CORS
@@ -45,23 +44,25 @@ def get_connection():
 # ENVÍO DE CORREO
 # =========================
 def enviar_correo_alerta(asunto, mensaje, destino):
-    smtp_server = "smtp.gmail.com"
-    smtp_port = 587
-    smtp_user = os.getenv("SMTP_USER")
-    smtp_pass = os.getenv("SMTP_PASS")
+    """
+    Envía un correo usando la API de Resend.
+    Requiere la variable de entorno RESEND_API_KEY y un remitente RESEND_FROM.
+    """
+    resend_api_key = os.getenv("RESEND_API_KEY")
+    resend_from = os.getenv("RESEND_FROM", "onboarding@resend.dev")
 
-    if not smtp_user or not smtp_pass:
-        raise ValueError("Faltan credenciales SMTP")
+    if not resend_api_key:
+        raise ValueError("Falta RESEND_API_KEY en variables de entorno")
 
-    msg = MIMEText(mensaje, "plain", "utf-8")
-    msg["Subject"] = asunto
-    msg["From"] = smtp_user
-    msg["To"] = destino
-
-    with smtplib.SMTP(smtp_server, smtp_port) as server:
-        server.starttls()
-        server.login(smtp_user, smtp_pass)
-        server.send_message(msg)
+    resend.api_key = resend_api_key
+    r = resend.Emails.send({
+        "from": resend_from,
+        "to": destino,
+        "subject": asunto,
+        "html": f"<p>{mensaje}</p>"
+    })
+    if r.get("error"):
+        raise Exception(f"Error Resend: {r['error']}")
 
 # =========================
 # RUTAS

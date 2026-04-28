@@ -170,7 +170,18 @@ def enviar_alerta():
                 "message": "Faltan datos"
             }), 400
 
-        enviar_correo_alerta(asunto, mensaje, destino)
+        try:
+            enviar_correo_alerta(asunto, mensaje, destino)
+        except Exception as smtp_error:
+            # Loguea el error SMTP en consola
+            import traceback
+            print("SMTP ERROR:", smtp_error)
+            traceback.print_exc()
+            return jsonify({
+                "success": False,
+                "message": "Error enviando correo",
+                "smtp_error": str(smtp_error)
+            }), 500
 
         return jsonify({
             "success": True,
@@ -178,6 +189,9 @@ def enviar_alerta():
         }), 200
 
     except Exception as e:
+        import traceback
+        print("GENERAL ERROR:", e)
+        traceback.print_exc()
         return jsonify({
             "success": False,
             "error": str(e)

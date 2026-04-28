@@ -45,8 +45,8 @@ def get_connection():
 # ENVÍO DE CORREO
 # =========================
 def enviar_correo_alerta(asunto, mensaje, destino):
-    smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-    smtp_port = int(os.getenv("SMTP_PORT", 587))
+    smtp_server = "smtp.gmail.com"
+    smtp_port = 587
     smtp_user = os.getenv("SMTP_USER")
     smtp_pass = os.getenv("SMTP_PASS")
 

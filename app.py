@@ -1,10 +1,14 @@
+
 import os
 import smtplib
 from email.mime.text import MIMEText
 from flask import Flask, jsonify, request
 from mssql_python import connect
+from flask_cors import CORS
+
 
 app = Flask(__name__)
+CORS(app)
 
 # =========================
 # CONEXIÓN A BASE DE DATOS

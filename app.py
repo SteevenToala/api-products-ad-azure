@@ -1,10 +1,14 @@
 import os
-from flask import Flask, jsonify
+import smtplib
+from email.mime.text import MIMEText
+from flask import Flask, jsonify, request
 from mssql_python import connect
 
 app = Flask(__name__)
 
-
+# =========================
+# CONEXIÓN A BASE DE DATOS
+# =========================
 def get_connection():
     server = os.getenv("DB_SERVER")
     database = os.getenv("DB_DATABASE")
@@ -33,14 +37,37 @@ def get_connection():
 
     return connect(connection_string)
 
+# =========================
+# ENVÍO DE CORREO
+# =========================
+def enviar_correo_alerta(asunto, mensaje, destino):
+    smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    smtp_port = int(os.getenv("SMTP_PORT", 587))
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_pass = os.getenv("SMTP_PASS")
 
+    if not smtp_user or not smtp_pass:
+        raise ValueError("Faltan credenciales SMTP")
+
+    msg = MIMEText(mensaje, "plain", "utf-8")
+    msg["Subject"] = asunto
+    msg["From"] = smtp_user
+    msg["To"] = destino
+
+    with smtplib.SMTP(smtp_server, smtp_port) as server:
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.send_message(msg)
+
+# =========================
+# RUTAS
+# =========================
 @app.route("/")
 def home():
     return jsonify({
         "success": True,
         "message": "API Flask funcionando correctamente en Render"
     })
-
 
 @app.route("/debug-env")
 def debug_env():
@@ -50,8 +77,9 @@ def debug_env():
         "DB_USERNAME": os.getenv("DB_USERNAME"),
         "DB_PASSWORD_EXISTS": bool(os.getenv("DB_PASSWORD")),
         "DB_PORT": os.getenv("DB_PORT"),
+        "SMTP_USER": os.getenv("SMTP_USER"),
+        "SMTP_PASS_EXISTS": bool(os.getenv("SMTP_PASS"))
     })
-
 
 @app.route("/test-db")
 def test_db():
@@ -79,7 +107,6 @@ def test_db():
             cursor.close()
         if conn:
             conn.close()
-
 
 @app.route("/productos")
 def listar_productos():
@@ -121,7 +148,40 @@ def listar_productos():
         if conn:
             conn.close()
 
+# =========================
+# NUEVO ENDPOINT CORREO
+# =========================
+@app.route("/enviar-alerta", methods=["POST"])
+def enviar_alerta():
+    try:
+        data = request.get_json()
 
+        destino = data.get("to")
+        asunto = data.get("subject")
+        mensaje = data.get("message")
+
+        if not destino or not asunto or not mensaje:
+            return jsonify({
+                "success": False,
+                "message": "Faltan datos"
+            }), 400
+
+        enviar_correo_alerta(asunto, mensaje, destino)
+
+        return jsonify({
+            "success": True,
+            "message": "Correo enviado"
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+# =========================
+# MAIN
+# =========================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
